@@ -24,6 +24,7 @@
         }
         #deleteButton.active { background: #dc3545; }
     </style>
+    
 </head>
 <body>
     <div id="map"></div>
@@ -31,7 +32,7 @@
     <button id="deleteButton" class="button" style="top:70px;" onclick="toggleDeleteMode()">🗑️ Delete Mode</button>
 
     <script>
-        const map = L.map('map').setView([41.8781, -87.6298], 11);
+        const map = L.map('map').setView([41.8781, -87.6298], 13);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
             attribution: '&copy; OpenStreetMap & CartoDB contributors',
             subdomains: 'abcd',
