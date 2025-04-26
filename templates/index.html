@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Stations and Routes</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <style>
+        #map { height: 90vh; }
+        .button {
+            position: absolute;
+            right: 20px;
+            padding: 10px 15px;
+            font-size: 16px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            z-index: 1000;
+            margin-top: 10px;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+        }
+        #deleteButton.active { background: #dc3545; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <button class="button" style="top:20px;" onclick="saveData()">💾 Save</button>
+    <button id="deleteButton" class="button" style="top:70px;" onclick="toggleDeleteMode()">🗑️ Delete Mode</button>
+
+    <script>
+        const map = L.map('map').setView([41.8781, -87.6298], 11);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap & CartoDB contributors',
+            subdomains: 'abcd',
+            maxZoom: 19
+        }).addTo(map);
+
+        let stations = [], routes = [], tempRoute = [];
+        let stationMarkers = [], routeLines = [], deleteMode = false;
+
+        // Load existing data
+        fetch('/load').then(res => res.json()).then(data => {
+            data.stations.forEach(s => addStation(s.lat, s.lng, s.id, false));
+            data.routes.forEach(r => addRoute(r.s_id1, r.s_id2, false));
+        });
+
+        map.on('click', e => {
+            if (!deleteMode) addStation(e.latlng.lat, e.latlng.lng);
+        });
+
+        map.on('contextmenu', e => {
+            if (!deleteMode) {
+                let nearest = findNearestStation(e.latlng);
+                if (nearest) {
+                    tempRoute.push(nearest.id);
+                    if (tempRoute.length === 2) {
+                        addRoute(tempRoute[0], tempRoute[1]);
+                        tempRoute = [];
+                    }
+                }
+            }
+        });
+
+        function addStation(lat, lng, id = null, redraw = true) {
+            id = id || (stations.length ? Math.max(...stations.map(s => s.id)) + 1 : 1);
+            const marker = L.marker([lat, lng]).addTo(map).bindPopup(`Station ${id}`);
+            marker.on('click', () => { if (deleteMode) removeStation(id); });
+            stations.push({ id, lat, lng });
+            stationMarkers.push(marker);
+            if (redraw) marker.openPopup();
+        }
+
+        function addRoute(sid1, sid2, redraw = true) {
+            const s1 = stations.find(s => s.id == sid1);
+            const s2 = stations.find(s => s.id == sid2);
+            if (s1 && s2) {
+                const line = L.polyline([[s1.lat, s1.lng], [s2.lat, s2.lng]], { color: 'blue' }).addTo(map);
+                line.routeInfo = { s_id1: sid1, s_id2: sid2 };
+                line.on('click', () => { if (deleteMode) removeRoute(line); });
+                routes.push({ s_id1: sid1, s_id2: sid2 });
+                routeLines.push(line);
+            }
+        }
+
+        function findNearestStation(latlng) {
+            let minDist = Infinity, nearest = null;
+            stations.forEach(s => {
+                const d = Math.pow(s.lat - latlng.lat, 2) + Math.pow(s.lng - latlng.lng, 2);
+                if (d < minDist) { minDist = d; nearest = s; }
+            });
+            return nearest;
+        }
+
+        function removeStation(id) {
+            const index = stations.findIndex(s => s.id == id);
+            if (index !== -1) {
+                map.removeLayer(stationMarkers[index]);
+                stations.splice(index, 1);
+                stationMarkers.splice(index, 1);
+            }
+            // Remove connected routes
+            routeLines = routeLines.filter(line => {
+                if (line.routeInfo.s_id1 === id || line.routeInfo.s_id2 === id) {
+                    map.removeLayer(line);
+                    return false;
+                }
+                return true;
+            });
+            routes = routes.filter(r => r.s_id1 !== id && r.s_id2 !== id);
+        }
+
+        function removeRoute(line) {
+            map.removeLayer(line);
+            const { s_id1, s_id2 } = line.routeInfo;
+            routes = routes.filter(r => !(r.s_id1 === s_id1 && r.s_id2 === s_id2));
+            routeLines = routeLines.filter(l => l !== line);
+        }
+
+        function toggleDeleteMode() {
+            deleteMode = !deleteMode;
+            document.getElementById('deleteButton').classList.toggle('active', deleteMode);
+        }
+
+        function saveData() {
+            fetch('/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ stations, routes })
+            }).then(r => r.ok ? alert('Saved!') : alert('Error saving.'));
+        }
+    </script>
+</body>
+</html>
