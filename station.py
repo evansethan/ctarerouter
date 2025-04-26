@@ -15,8 +15,10 @@ def call_function(): # call use this function to get the median time
     G = generate_graph()
     calculate_distance(G)
     m_distance = median_distance(G)
+
+    dist = round(m_distance, 2)
     
-    return round(m_distance, 2)
+    return f"median shortest path (km): {dist}"
 
     
 def generate_graph(): # call this function to generate the graph that has all stations
