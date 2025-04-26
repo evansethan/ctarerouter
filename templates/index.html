@@ -126,12 +126,36 @@
         }
 
         function saveData() {
-            fetch('/save', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ stations, routes })
-            }).then(r => r.ok ? alert('Saved!') : alert('Error saving.'));
-        }
+    fetch('/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stations, routes })
+    })
+    .then(r => r.json())
+    .then(data => {
+        showNumber(data.number);
+        alert(data.message);
+    });
+}
+function showNumber(number) {
+    if (window.numberControl) {
+        map.removeControl(window.numberControl);
+    }
+    window.numberControl = L.control({position: 'bottomleft'});
+
+    window.numberControl.onAdd = function () {
+        const div = L.DomUtil.create('div', 'info');
+        div.innerHTML = `<h2>Generated: ${number}</h2>`;
+        div.style.background = 'white';
+        div.style.padding = '8px';
+        div.style.borderRadius = '8px';
+        div.style.boxShadow = '2px 2px 6px rgba(0,0,0,0.3)';
+        div.style.fontSize = '18px';
+        return div;
+    };
+
+    window.numberControl.addTo(map);
+}
     </script>
 </body>
 </html>

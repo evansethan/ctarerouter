@@ -3,6 +3,7 @@ import sqlite3
 import os
 import webbrowser
 import threading
+from station import call_function
 
 app = Flask(__name__)
 
@@ -30,7 +31,8 @@ def save():
     
     conn.commit()
     conn.close()
-    return 'Saved!', 200
+    num = call_function()
+    return jsonify({'message': 'Saved!', 'number': num})
 
 @app.route('/load', methods=['GET'])
 def load():
